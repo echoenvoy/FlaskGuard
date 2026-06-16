@@ -34,7 +34,7 @@ Contains structural reports and presentations illustrating the research, design,
 
 ---
 
-## 🚀 Quick Start (Running the Stack)
+##  Quick Start (Running the Stack)
 
 The entire environment is configured to run inside Docker.
 
