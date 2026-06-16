@@ -1,6 +1,6 @@
 # FlaskGuard - Custom Web Application Firewall (WAF) & E-Commerce Stack
 
-This repository showcases a complete security architecture demonstrating **FlaskGuard**—a custom-built Web Application Firewall (WAF) and reverse proxy—deployed to protect a full-stack MERN (MongoDB, Express, React, Node.js) e-commerce application.
+This repository showcases a complete security architecture demonstrating **FlaskGuard**—a custom-built Web Application Firewall (WAF) and reverse proxy.
 
 ---
 
