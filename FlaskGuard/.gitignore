@@ -1,0 +1,15 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Runtime logs and blacklist
+flaskguard/logs/
+logs/
+
+# Trained models
+models/classifier.pkl
+flaskguard/models/classifier.pkl
+
+# OS files
+.DS_Store

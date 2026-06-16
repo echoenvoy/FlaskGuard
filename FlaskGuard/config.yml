@@ -1,0 +1,97 @@
+# FlaskGuard Reverse Proxy Configuration
+
+# The URL of the target website to protect
+# In the Docker Network, we use the service name "backend" and port "8080"
+backend_url: "http://backend:8080"
+
+# FlaskGuard Server Settings
+port: 5000
+debug: false
+secret_key: "flaskguard-secret-change-in-production-key"
+
+# Admin dashboard/API authentication
+admin_auth:
+  enabled: true
+  username: "admin"
+  password: "admin123"
+
+# Storage paths can be absolute or relative to the project root.
+storage:
+  log_dir: "flaskguard/logs"
+  attacks_file: "flaskguard/logs/attacks.json"
+  security_log_file: "flaskguard/logs/security.log"
+  blacklist_file: "flaskguard/logs/blacklist.json"
+  classifier_model_file: "flaskguard/models/classifier.pkl"
+  classifier_meta_file: "flaskguard/models/model_meta.json"
+  feedback_file: "flaskguard/logs/feedback.json"
+
+# WAF Security Settings
+rate_limiting:
+  enabled: true
+  default_limits:
+    - "200 per day"
+    - "100 per hour"
+
+proxy:
+  timeout_seconds: 10
+  verify_tls: true
+
+ip_blacklist:
+  enabled: true
+  threshold_strikes: 5
+  ban_duration_minutes: 60
+
+ml_classifier:
+  enabled: true
+  confidence_threshold: 0.85
+
+file_scanner:
+  enabled: true
+  max_file_size_mb: 10
+  allowed_extensions:
+    image:
+      - ".jpg"
+      - ".jpeg"
+      - ".png"
+      - ".gif"
+      - ".webp"
+      - ".bmp"
+    document:
+      - ".pdf"
+      - ".txt"
+      - ".csv"
+      - ".json"
+      - ".xml"
+    archive:
+      - ".zip"
+    office:
+      - ".docx"
+      - ".xlsx"
+      - ".pptx"
+    vector:
+      - ".svg"
+
+# Paths to exclude from WAF inspection (admin is always excluded implicitly)
+exclude_paths:
+  - "/static"
+  - "/favicon.ico"
+
+# Frontend assets are served through the proxy but are not user input.
+static_asset_extensions:
+  - ".css"
+  - ".js"
+  - ".map"
+  - ".ico"
+  - ".png"
+  - ".jpg"
+  - ".jpeg"
+  - ".gif"
+  - ".webp"
+  - ".svg"
+  - ".woff"
+  - ".woff2"
+  - ".ttf"
+  - ".eot"
+  - ".json"
+  - ".txt"
+  - ".xml"

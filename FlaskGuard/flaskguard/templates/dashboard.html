@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FlaskGuard — Security Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #070b0f;
+    --surface: #0d1117;
+    --surface2: #161b22;
+    --border: #21262d;
+    --accent: #00ff88;
+    --accent2: #ff4466;
+    --accent3: #ffaa00;
+    --accent4: #4488ff;
+    --text: #e6edf3;
+    --muted: #7d8590;
+    --danger: #ff4466;
+    --mono: 'Space Mono', monospace;
+    --sans: 'Syne', sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Grid noise texture */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(0,255,136,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,255,136,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── Header ─────────────────────────── */
+  header {
+    position: sticky; top: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 32px;
+    height: 60px;
+    background: rgba(7,11,15,0.95);
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(12px);
+  }
+  .logo {
+    display: flex; align-items: center; gap: 12px;
+    font-family: var(--sans); font-weight: 800; font-size: 18px;
+    letter-spacing: -0.5px;
+  }
+  .logo-icon {
+    width: 32px; height: 32px;
+    background: var(--accent);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    color: #000; font-size: 14px; font-weight: 700;
+  }
+  .logo span { color: var(--accent); }
+  .header-right { display: flex; align-items: center; gap: 16px; }
+  .live-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%,100% { opacity:1; transform:scale(1); }
+    50% { opacity:0.5; transform:scale(1.4); }
+  }
+  .live-label { font-size: 12px; color: var(--accent); font-family: var(--mono); }
+  .refresh-btn {
+    padding: 6px 16px; border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--surface2); color: var(--text);
+    font-family: var(--mono); font-size: 12px; cursor: pointer;
+    transition: all .2s;
+  }
+  .refresh-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .simulate-btn {
+    padding: 6px 16px; border-radius: 6px;
+    border: 1px solid var(--accent3);
+    background: rgba(255,170,0,0.1); color: var(--accent3);
+    font-family: var(--mono); font-size: 12px; cursor: pointer;
+    transition: all .2s;
+  }
+  .simulate-btn:hover { background: rgba(255,170,0,0.2); }
+
+  /* ── Layout ─────────────────────────── */
+  main {
+    position: relative; z-index: 1;
+    padding: 32px;
+    max-width: 1400px; margin: 0 auto;
+  }
+
+  /* ── Stat Cards ─────────────────────── */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    position: relative; overflow: hidden;
+    transition: border-color .2s;
+  }
+  .stat-card::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.02), transparent);
+    pointer-events: none;
+  }
+  .stat-card:hover { border-color: var(--accent); }
+  .stat-label {
+    font-size: 11px; font-family: var(--mono);
+    color: var(--muted); text-transform: uppercase; letter-spacing: 1px;
+    margin-bottom: 12px;
+  }
+  .stat-value {
+    font-size: 42px; font-weight: 800; line-height: 1;
+    font-family: var(--mono);
+  }
+  .stat-card.total .stat-value { color: var(--accent); }
+  .stat-card.recent .stat-value { color: var(--accent3); }
+  .stat-card.banned .stat-value { color: var(--accent2); }
+  .stat-card.ips .stat-value { color: var(--accent4); }
+  .stat-sub {
+    font-size: 12px; color: var(--muted); margin-top: 8px;
+    font-family: var(--mono);
+  }
+  .stat-glow {
+    position: absolute; bottom: -20px; right: -20px;
+    width: 80px; height: 80px; border-radius: 50%;
+    opacity: 0.12;
+  }
+  .stat-card.total .stat-glow { background: var(--accent); }
+  .stat-card.recent .stat-glow { background: var(--accent3); }
+  .stat-card.banned .stat-glow { background: var(--accent2); }
+  .stat-card.ips .stat-glow { background: var(--accent4); }
+
+  /* ── Charts Row ─────────────────────── */
+  .charts-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+  .chart-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 24px;
+  }
+  .chart-title {
+    font-size: 13px; font-weight: 600; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 1px; margin-bottom: 20px;
+    font-family: var(--mono);
+  }
+  .chart-wrap { position: relative; height: 220px; }
+
+  /* ── Tables Row ─────────────────────── */
+  .tables-row {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+  .table-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 24px;
+  }
+  .table-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  .table-title {
+    font-size: 13px; font-weight: 600; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 1px;
+    font-family: var(--mono);
+  }
+  table { width: 100%; border-collapse: collapse; }
+  th {
+    text-align: left; padding: 8px 12px;
+    font-size: 10px; font-family: var(--mono);
+    color: var(--muted); text-transform: uppercase; letter-spacing: 1px;
+    border-bottom: 1px solid var(--border);
+  }
+  td {
+    padding: 10px 12px;
+    font-size: 13px; font-family: var(--mono);
+    border-bottom: 1px solid rgba(33,38,45,0.5);
+    color: var(--text);
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(0,255,136,0.03); }
+  .badge {
+    display: inline-block; padding: 2px 8px;
+    border-radius: 4px; font-size: 11px; font-family: var(--mono);
+  }
+  .badge-sql { background: rgba(255,68,102,0.15); color: #ff6688; border: 1px solid rgba(255,68,102,0.3); }
+  .badge-xss { background: rgba(0,194,255,0.15); color: #66ddff; border: 1px solid rgba(0,194,255,0.3); }
+  .badge-path { background: rgba(68,136,255,0.15); color: #66aaff; border: 1px solid rgba(68,136,255,0.3); }
+  .badge-cmd { background: rgba(180,80,255,0.15); color: #cc88ff; border: 1px solid rgba(180,80,255,0.3); }
+  .badge-ml { background: rgba(0,255,136,0.15); color: #44ffaa; border: 1px solid rgba(0,255,136,0.3); }
+  .badge-suspicious { background: rgba(255,213,0,0.15); color: #ffd500; border: 1px solid rgba(255,213,0,0.3); }
+
+  .method-regex { color: var(--accent2); }
+  .method-ml { color: var(--accent); }
+  .ip-text { color: var(--accent4); }
+  .payload-text {
+    max-width: 280px; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap;
+    color: var(--accent3); font-size: 11px;
+  }
+
+  /* ── Blacklist card ─────────────────── */
+  .bl-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(33,38,45,0.5);
+  }
+  .bl-item:last-child { border-bottom: none; }
+  .bl-ip { font-family: var(--mono); color: var(--accent2); font-size: 14px; }
+  .bl-exp { font-family: var(--mono); color: var(--muted); font-size: 11px; }
+  .unban-btn {
+    padding: 4px 12px; border-radius: 4px;
+    border: 1px solid var(--accent);
+    background: transparent; color: var(--accent);
+    font-size: 11px; font-family: var(--mono); cursor: pointer;
+    transition: all .2s;
+  }
+  .unban-btn:hover { background: rgba(0,255,136,0.1); }
+  .empty-msg {
+    color: var(--muted); font-family: var(--mono); font-size: 13px;
+    text-align: center; padding: 20px 0;
+  }
+
+  /* ── Ban form ───────────────────────── */
+  .ban-form { display: flex; gap: 8px; margin-top: 16px; }
+  .ban-input {
+    flex: 1; padding: 8px 12px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 6px; color: var(--text); font-family: var(--mono);
+    font-size: 13px; outline: none;
+    transition: border-color .2s;
+  }
+  .ban-input:focus { border-color: var(--accent); }
+  .ban-btn {
+    padding: 8px 16px; border-radius: 6px;
+    border: 1px solid var(--accent2);
+    background: rgba(255,68,102,0.1); color: var(--accent2);
+    font-family: var(--mono); font-size: 12px; cursor: pointer;
+    white-space: nowrap; transition: all .2s;
+  }
+  .ban-btn:hover { background: rgba(255,68,102,0.2); }
+
+  /* ── Alert toast ────────────────────── */
+  #toast {
+    position: fixed; bottom: 32px; right: 32px;
+    padding: 12px 20px; border-radius: 8px;
+    background: var(--surface2); border: 1px solid var(--accent);
+    color: var(--accent); font-family: var(--mono); font-size: 13px;
+    z-index: 999; opacity: 0; transform: translateY(10px);
+    transition: all .3s;
+    pointer-events: none;
+  }
+  #toast.show { opacity: 1; transform: translateY(0); }
+
+  /* ── Top IPs ────────────────────────── */
+  .top-ip-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 0; border-bottom: 1px solid rgba(33,38,45,0.5);
+  }
+  .top-ip-row:last-child { border-bottom: none; }
+  .ip-bar-wrap { flex: 1; margin: 0 12px; }
+  .ip-bar {
+    height: 4px; border-radius: 2px;
+    background: linear-gradient(90deg, var(--accent4), var(--accent));
+    transition: width .6s ease;
+  }
+  .ip-count { font-family: var(--mono); font-size: 12px; color: var(--accent3); min-width: 24px; text-align: right; }
+
+  @media (max-width: 1024px) {
+    .stats-grid { grid-template-columns: repeat(2,1fr); }
+    .charts-row, .tables-row { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">
+    <div class="logo-icon">🛡</div>
+    Flask<span>Guard</span>
+  </div>
+  <div class="header-right">
+    <div class="live-dot"></div>
+    <span class="live-label">LIVE</span>
+    <button class="simulate-btn" onclick="simulate()">⚡ Simulate Attacks</button>
+    <button class="refresh-btn" onclick="loadAll()">↺ Refresh</button>
+  </div>
+</header>
+
+<main>
+  <!-- Stats -->
+  <div class="stats-grid">
+    <div class="stat-card total">
+      <div class="stat-label">Total Attacks Blocked</div>
+      <div class="stat-value" id="stat-total">—</div>
+      <div class="stat-sub">all time</div>
+      <div class="stat-glow"></div>
+    </div>
+    <div class="stat-card recent">
+      <div class="stat-label">Last 24 Hours</div>
+      <div class="stat-value" id="stat-24h">—</div>
+      <div class="stat-sub">recent activity</div>
+      <div class="stat-glow"></div>
+    </div>
+    <div class="stat-card banned">
+      <div class="stat-label">Auto-Banned Events</div>
+      <div class="stat-value" id="stat-banned">—</div>
+      <div class="stat-sub">auto-triggered bans</div>
+      <div class="stat-glow"></div>
+    </div>
+    <div class="stat-card ips">
+      <div class="stat-label">Blacklisted IPs</div>
+      <div class="stat-value" id="stat-ips">—</div>
+      <div class="stat-sub">currently active</div>
+      <div class="stat-glow"></div>
+    </div>
+  </div>
+
+  <!-- Charts -->
+  <div class="charts-row">
+    <div class="chart-card">
+      <div class="chart-title">Attack Types Distribution</div>
+      <div class="chart-wrap">
+        <canvas id="categoryChart"></canvas>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Detection Method Breakdown</div>
+      <div class="chart-wrap">
+        <canvas id="methodChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tables -->
+  <div class="tables-row">
+    <!-- Attack Log -->
+    <div class="table-card">
+      <div class="table-header">
+        <div class="table-title">Recent Attack Log</div>
+      </div>
+      <div style="overflow-x:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>IP</th>
+              <th>Category</th>
+              <th>Method</th>
+              <th>Payload</th>
+            </tr>
+          </thead>
+          <tbody id="attack-table"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Right column -->
+    <div style="display:flex; flex-direction:column; gap:16px;">
+      <!-- Top IPs -->
+      <div class="table-card">
+        <div class="table-title" style="margin-bottom:16px;">Top Attacking IPs</div>
+        <div id="top-ips"></div>
+      </div>
+
+      <!-- Blacklist -->
+      <div class="table-card">
+        <div class="table-header">
+          <div class="table-title">IP Blacklist</div>
+        </div>
+        <div id="blacklist-list"></div>
+        <div class="ban-form">
+          <input class="ban-input" id="ban-ip" placeholder="IP address to ban..." />
+          <button class="ban-btn" onclick="banIP()">Ban</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<div id="toast"></div>
+
+<script>
+let categoryChart, methodChart;
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+async function fetchJSON(url) {
+  const r = await fetch(url, { cache: 'no-store' });
+  if (!r.ok) {
+    throw new Error(`${url} returned ${r.status}`);
+  }
+  return r.json();
+}
+
+function categoryBadge(cat) {
+  const safeCat = escapeHtml(cat || 'Unknown');
+  const map = {
+    'SQL Injection': 'badge-sql',
+    'XSS': 'badge-xss',
+    'Path Traversal': 'badge-path',
+    'Command Injection': 'badge-cmd',
+    'Suspicious Input': 'badge-suspicious',
+  };
+  const cls = map[cat] || 'badge-ml';
+  return `<span class="badge ${cls}">${safeCat}</span>`;
+}
+
+function methodBadge(m) {
+  if (m === 'Regex') return '<span class="method-regex">Regex</span>';
+  if (m === 'ML Classifier') return '<span class="method-ml">ML</span>';
+  return `<span>${escapeHtml(m)}</span>`;
+}
+
+function timeAgo(iso) {
+  const diff = Math.floor((Date.now() - new Date(iso + 'Z')) / 1000);
+  if (diff < 60) return diff + 's ago';
+  if (diff < 3600) return Math.floor(diff/60) + 'm ago';
+  return Math.floor(diff/3600) + 'h ago';
+}
+
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+async function loadStats() {
+  try {
+    const d = await fetchJSON('/admin/api/stats');
+
+    document.getElementById('stat-total').textContent = d.total;
+    document.getElementById('stat-24h').textContent = d.recent_24h;
+    document.getElementById('stat-banned').textContent = d.auto_banned;
+
+    // Charts
+    const cats = d.by_category || {};
+    const methods = d.by_method || {};
+
+    const categoryColors = {
+      'SQL Injection': '#ff4466',
+      'XSS': '#00c2ff',
+      'Path Traversal': '#4488ff',
+      'Command Injection': '#cc88ff',
+      'File Injection': '#ff7a45',
+      'Suspicious Input': '#ffd500',
+      'Embedded Malicious Code': '#00ff88',
+      'Dangerous File in Archive': '#44ffaa',
+      'Double Extension Attack': '#ff8bd1',
+      'Disallowed File Type': '#7c5cff',
+      'Server-Side Script Upload': '#ff3366',
+    };
+    const fallbackColors = ['#ff4466','#00c2ff','#4488ff','#cc88ff','#ff7a45','#ffd500','#00ff88','#44ffaa'];
+    const labels = Object.keys(cats);
+    const colors = labels.map((label, index) => categoryColors[label] || fallbackColors[index % fallbackColors.length]);
+
+    if (categoryChart) categoryChart.destroy();
+    categoryChart = new Chart(document.getElementById('categoryChart'), {
+      type: 'doughnut',
+      data: {
+        labels,
+        datasets: [{
+          data: Object.values(cats),
+          backgroundColor: colors,
+          borderColor: '#0d1117',
+          borderWidth: 2,
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { labels: { color: '#7d8590', font: { family: 'Space Mono', size: 11 } } }
+        }
+      }
+    });
+
+    if (methodChart) methodChart.destroy();
+    methodChart = new Chart(document.getElementById('methodChart'), {
+      type: 'bar',
+      data: {
+        labels: Object.keys(methods),
+        datasets: [{
+          label: 'Detections',
+          data: Object.values(methods),
+          backgroundColor: ['#ff4466','#00ff88','#ffaa00'],
+          borderRadius: 6,
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: '#7d8590', font: { family: 'Space Mono', size: 11 } }, grid: { color: '#21262d' } },
+          y: { ticks: { color: '#7d8590', font: { family: 'Space Mono', size: 11 } }, grid: { color: '#21262d' } }
+        }
+      }
+    });
+
+    // Top IPs
+    const topIPs = d.top_ips || [];
+    const max = topIPs.length ? topIPs[0].count : 1;
+    document.getElementById('top-ips').innerHTML = topIPs.length
+      ? topIPs.map(({ip, count}) => `
+        <div class="top-ip-row">
+          <span class="ip-text" style="min-width:120px;font-size:12px;font-family:var(--mono)">${escapeHtml(ip)}</span>
+          <div class="ip-bar-wrap"><div class="ip-bar" style="width:${Math.round(count/max*100)}%"></div></div>
+          <span class="ip-count">${count}</span>
+        </div>`).join('')
+      : '<div class="empty-msg">No data yet</div>';
+  } catch (err) {
+    console.error('Failed to load stats:', err);
+  }
+}
+
+async function loadAttacks() {
+  try {
+    const attacks = await fetchJSON('/admin/api/attacks?limit=30');
+    const tbody = document.getElementById('attack-table');
+    if (!attacks.length) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:24px">No attacks logged yet. Click "Simulate Attacks" to seed demo data.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = attacks.map(a => `
+      <tr>
+        <td style="color:var(--muted);font-size:11px;white-space:nowrap">${timeAgo(a.timestamp)}</td>
+        <td><span class="ip-text">${escapeHtml(a.ip)}</span></td>
+        <td>${categoryBadge(a.category)}</td>
+        <td>${methodBadge(a.detection_method)}</td>
+        <td><span class="payload-text" title="${escapeHtml(a.payload)}">${escapeHtml(a.payload)}</span></td>
+      </tr>`).join('');
+  } catch (err) {
+    console.error('Failed to load attacks:', err);
+  }
+}
+
+async function loadBlacklist() {
+  try {
+    const bl = await fetchJSON('/admin/api/blacklist');
+    document.getElementById('stat-ips').textContent = bl.length;
+    const el = document.getElementById('blacklist-list');
+    if (!bl.length) {
+      el.innerHTML = '<div class="empty-msg">No IPs blacklisted</div>';
+      return;
+    }
+    el.innerHTML = bl.map(({ip, remaining_min}) => `
+      <div class="bl-item">
+        <div>
+          <div class="bl-ip">${escapeHtml(ip)}</div>
+          <div class="bl-exp">${remaining_min}m remaining</div>
+        </div>
+        <button class="unban-btn" onclick="unbanIP('${encodeURIComponent(ip)}')">Unban</button>
+      </div>`).join('');
+  } catch (err) {
+    console.error('Failed to load blacklist:', err);
+  }
+}
+
+async function banIP() {
+  const ip = document.getElementById('ban-ip').value.trim();
+  if (!ip) return;
+  await fetch('/admin/api/ban', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ip, minutes: 60})
+  });
+  document.getElementById('ban-ip').value = '';
+  toast(`Banned ${ip}`);
+  loadBlacklist();
+}
+
+async function unbanIP(ipEncoded) {
+  const ip = decodeURIComponent(ipEncoded);
+  await fetch('/admin/api/unban', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ip})
+  });
+  toast(`Unbanned ${ip}`);
+  loadBlacklist();
+}
+
+async function simulate() {
+  await fetch('/admin/api/simulate', { method: 'POST' });
+  toast('⚡ 20 attack events simulated!');
+  loadAll();
+}
+
+async function loadAll() {
+  await Promise.allSettled([loadStats(), loadAttacks(), loadBlacklist()]);
+}
+
+// Auto-refresh every 10s
+loadAll();
+setInterval(loadAll, 10000);
+</script>
+</body>
+</html>

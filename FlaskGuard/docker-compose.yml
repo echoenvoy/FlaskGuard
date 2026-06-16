@@ -1,0 +1,27 @@
+services:
+  flaskguard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: flaskguard_waf
+    ports:
+      - "80:80"
+    volumes:
+      - ./flaskguard/logs:/app/flaskguard/logs
+    environment:
+      - PYTHONUNBUFFERED=1
+      - BACKEND_URL=http://website:5000
+      - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
+    depends_on:
+      - website
+
+  website:
+    build:
+      context: ./demo_backend
+      dockerfile: Dockerfile
+    container_name: demo_website
+    expose:
+      - "5000"
+    environment:
+      - PYTHONUNBUFFERED=1

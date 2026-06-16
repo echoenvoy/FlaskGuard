@@ -1,0 +1,1 @@
+Null-byte filenames cannot be created on modern filesystems. For shell.php\0.jpg, use Burp Suite or a custom HTTP request during upload testing.
