@@ -48,3 +48,14 @@ The entire environment is configured to run inside Docker.
 3. Access the services in your browser:
    * **Protected Website:** [http://localhost](http://localhost) (Traffic goes through FlaskGuard)
    * **WAF Security Dashboard:** [http://localhost/admin](http://localhost/admin) (Default Credentials: `admin` / `admin123`)
+
+## 👥 Contributors
+
+This project was developed collaboratively by:
+
+* Amhidi Hamza
+* Saaf Ayyoub
+* Saoud Amine
+* Ben Mouh Mohamed
+* El Asraoui Abdelmoghit
+
