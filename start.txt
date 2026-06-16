@@ -1,0 +1,3 @@
+cd "C:\Users\Hamza\Documents\#Projects\FlaskGuard-main\FlaskGuard-main\Test website"
+docker compose build --no-cache flaskguard
+docker compose up --build
