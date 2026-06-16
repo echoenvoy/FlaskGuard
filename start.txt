@@ -1,3 +1,0 @@
-cd "Test website"
-docker compose build --no-cache flaskguard
-docker compose up --build
